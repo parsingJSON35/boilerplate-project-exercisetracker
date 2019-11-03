@@ -5,7 +5,7 @@ const bodyParser = require('body-parser')
 const cors = require('cors')
 
 const mongoose = require('mongoose')
-mongoose.connect(process.env.MLAB_URI || 'mongodb://localhost/exercise-track' )
+mongoose.connect(process.env.MONGO, {useNewUrlParser: true, useUnifiedTopology: true} )
 
 app.use(cors())
 
@@ -17,6 +17,57 @@ app.use(express.static('public'))
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/views/index.html')
 });
+
+
+var Schema = mongoose.Schema
+var Model = mongoose.model
+var ObjectId = mongoose.Schema.Types.ObjectId
+
+///////////////////////////// USER SCHEMA //////////////////////////////////////
+var userSchema = new Schema({
+  username: {
+    type: String,
+    required: true,
+    unique: true
+  },
+})
+
+var User = new Model('User', userSchema)
+
+///////////////////////////// EXERCISE SCHEMA //////////////////////////////////
+var exerciseSchema = new Schema({
+  description: {
+    type: String,
+    required: true
+  },
+  duration: {
+    type: Number,
+    required: true
+  },
+  date: {
+    type: String,
+    required: true
+  },
+  userId: {
+    type: ObjectId,
+    required: true
+  }
+})
+
+var Exercise = new Model('Exercise', exerciseSchema)
+
+app.post('/api/exercise/new-user', (req, res) => {
+  var user = new User({username: req.body.username})
+  user.save()
+  res.json(user)
+})
+
+app.get('/api/exercise/users', (req, res) => {
+  User.find((err, users) => {
+    if(err) { return error }
+    res.json(users)
+  })
+})
 
 
 // Not found middleware
