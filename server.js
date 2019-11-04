@@ -5,7 +5,7 @@ const bodyParser = require('body-parser')
 const cors = require('cors')
 
 const mongoose = require('mongoose')
-mongoose.connect(process.env.MONGO, {useNewUrlParser: true, useUnifiedTopology: true} )
+mongoose.connect(`mongodb+srv://admin:admin@cluster0-yttqw.mongodb.net/test?retryWrites=true&w=majority`, {useNewUrlParser: true, useUnifiedTopology: true} )
 
 app.use(cors())
 
@@ -23,17 +23,6 @@ var Schema = mongoose.Schema
 var Model = mongoose.model
 var ObjectId = mongoose.Schema.Types.ObjectId
 
-///////////////////////////// USER SCHEMA //////////////////////////////////////
-var userSchema = new Schema({
-  username: {
-    type: String,
-    required: true,
-    unique: true
-  },
-})
-
-var User = new Model('User', userSchema)
-
 ///////////////////////////// EXERCISE SCHEMA //////////////////////////////////
 var exerciseSchema = new Schema({
   description: {
@@ -48,25 +37,31 @@ var exerciseSchema = new Schema({
     type: String,
     required: true
   },
-  userId: {
-    type: ObjectId,
-    required: true
-  }
 })
+
+///////////////////////////// USER SCHEMA //////////////////////////////////////
+var userSchema = new Schema({
+  username: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  logs: [exerciseSchema]
+})
+
+var User = new Model('User', userSchema)
+
+
 
 var Exercise = new Model('Exercise', exerciseSchema)
 
 app.post('/api/exercise/new-user', (req, res) => {
   var user = new User({username: req.body.username})
-  user.save()
-  res.json(user)
+  user.save().then(data => res.json(data)).catch(error => console.error(error))
 })
 
 app.get('/api/exercise/users', (req, res) => {
-  User.find((err, users) => {
-    if(err) { return error }
-    res.json(users)
-  })
+  User.find().select('-__v').exec().then(users => res.json(users)).catch(error => console.error(error))
 })
 
 
