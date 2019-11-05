@@ -21,7 +21,20 @@ app.get('/', (req, res) => {
 
 var Schema = mongoose.Schema
 var Model = mongoose.model
-var ObjectId = mongoose.Schema.Types.ObjectId
+var ObjectId = Schema.Types.ObjectId
+
+
+
+///////////////////////////// USER SCHEMA //////////////////////////////////////
+var userSchema = new Schema({
+  username: {
+    type: String,
+    required: true,
+    unique: true
+  },
+})
+
+var User = new Model('User', userSchema)
 
 ///////////////////////////// EXERCISE SCHEMA //////////////////////////////////
 var exerciseSchema = new Schema({
@@ -34,34 +47,66 @@ var exerciseSchema = new Schema({
     required: true
   },
   date: {
-    type: String,
+    type: Date,
     required: true
   },
-})
-
-///////////////////////////// USER SCHEMA //////////////////////////////////////
-var userSchema = new Schema({
-  username: {
-    type: String,
+  user_id: {
+    type: ObjectId,
+    ref: User,
     required: true,
-    unique: true
-  },
-  logs: [exerciseSchema]
+  }
 })
-
-var User = new Model('User', userSchema)
-
-
 
 var Exercise = new Model('Exercise', exerciseSchema)
 
 app.post('/api/exercise/new-user', (req, res) => {
   var user = new User({username: req.body.username})
-  user.save().then(data => res.json(data)).catch(error => console.error(error))
+  user.save().then(u => res.json(u)).catch(error => {
+    console.error(error)
+    res.send(error.errmsg)
+  })
 })
 
 app.get('/api/exercise/users', (req, res) => {
-  User.find().select('-__v').exec().then(users => res.json(users)).catch(error => console.error(error))
+  User.find().select('-__v').exec().then(users => res.json(users)).catch(error => {
+    console.error(error)
+    res.send(error.errmsg)
+  })
+})
+
+app.post('/api/exercise/add', (req, res) => {
+  var {userId, description, duration, date} = req.body
+
+  var formattedDate = date ? new Date(date).toDateString() : new Date().toDateString()
+
+  var exercise = new Exercise({
+    description: description,
+    duration: duration,
+    date: formattedDate,
+    user_id: userId
+  })
+
+  exercise.save().then(e => res.json(e)).catch(error => {
+    console.error(error)
+    res.send(error.errmsg)
+  })
+})
+
+app.get('/api/exercise/log', (req, res) => {
+  var {userId, from, to, limit } = req.query
+
+  if(!userId) {res.send('Required query param for userId is missing.')}
+  else {
+    User.findById(userId).select('-__v').exec().then(user => {
+      Exercise.find({user_id: user.id}).select('-__v -user_id -_id').exec()
+        .then(exercises => res.json({
+          _id: user.id,
+          username: user.username,
+          count: exercises.length,
+          log: exercises
+      }))
+    })
+  }
 })
 
 
