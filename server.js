@@ -61,7 +61,7 @@ var Exercise = new Model('Exercise', exerciseSchema)
 
 app.post('/api/exercise/new-user', (req, res) => {
   var user = new User({username: req.body.username})
-  user.save().then(u => res.json(u)).catch(error => {
+  user.save().then(u => res.json({_id: u.id, username: u.username})).catch(error => {
     console.error(error)
     res.send(error.errmsg)
   })
@@ -77,7 +77,7 @@ app.get('/api/exercise/users', (req, res) => {
 app.post('/api/exercise/add', (req, res) => {
   var {userId, description, duration, date} = req.body
 
-  var formattedDate = date ? new Date(date).toDateString() : new Date().toDateString()
+  var formattedDate = date ? new Date(date) : new Date()
 
   var exercise = new Exercise({
     description: description,
@@ -93,18 +93,39 @@ app.post('/api/exercise/add', (req, res) => {
 })
 
 app.get('/api/exercise/log', (req, res) => {
-  var {userId, from, to, limit } = req.query
+  var {userId, from, to } = req.query
+  var limit = parseInt(req.query.limit)
+
 
   if(!userId) {res.send('Required query param for userId is missing.')}
   else {
     User.findById(userId).select('-__v').exec().then(user => {
-      Exercise.find({user_id: user.id}).select('-__v -user_id -_id').exec()
-        .then(exercises => res.json({
-          _id: user.id,
-          username: user.username,
-          count: exercises.length,
-          log: exercises
+      var e_query =  {user_id: userId }
+
+      if(from) { e_query.date = { $gte: new Date(from) } }
+      if(to) {
+        if(e_query.date) { e_query.date.$lte = new Date(to) }
+        else { e_query.date = { $lte: new Date(to) }}
+      }
+
+      Exercise.find(e_query).select('-__v -user_id -_id').limit(limit).exec()
+      .then(exercises => res.json({
+        _id: user.id,
+        username: user.username,
+        count: exercises.length,
+        log: exercises
       }))
+      // Exercise.find({user_id: user.id}).select('-__v -user_id -_id')
+      // .gte('date', from).lte('date', to).limit(limit).exec()
+      // .then(exercises => res.json({
+      //   _id: user.id,
+      //   username: user.username,
+      //   count: exercises.length,
+      //   log: exercises
+      // }))
+    }).catch(error => {
+      console.error(error)
+      res.send(error.errmsg)
     })
   }
 })
